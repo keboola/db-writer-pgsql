@@ -158,14 +158,15 @@ class Pgsql extends Writer implements WriterInterface
         $this->execQuery($sql);
 
         $connectionString = sprintf(
-            'postgres://%s:"%s"@%s:%s/%s?tablename=%s',
+            'postgres://%s:@%s:%s/%s?tablename=%s',
             $this->dbParams['user'],
-            $this->dbParams['password'],
             $this->dbParams['host'],
             $this->dbParams['port'],
             $this->dbParams['database'],
             $this->escape($this->dbParams['schema']) . '.' . $this->escape($table['dbName'])
         );
+
+        putenv(sprintf('PGPASSWORD=%s', $this->dbParams['password']));
 
         $pgloaderCommand = sprintf(
             'pgloader --debug \
@@ -193,7 +194,6 @@ class Pgsql extends Writer implements WriterInterface
                 $matches = [];
                 $regExDate = '\d{4}-[01]{1}\d{1}-[0-3]{1}\d{1}T[0-2]{1}\d{1}:[0-6]{1}\d{1}:[0-6]{1}\d{1}\.[0-9]{6}Z';
                 if (preg_match(sprintf('/^(%s) (\w+) (.+)/ui', $regExDate), $buffer, $matches)) {
-
                     if ($matches[2] === 'FATAL' || $matches[2] === 'ERROR') {
                         $this->logger->error(sprintf("PGLOADER: %s", $matches[3]));
                         $errors->count += 1;
