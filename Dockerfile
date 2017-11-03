@@ -17,10 +17,9 @@ RUN cp /usr/local/src/ccl/scripts/ccl64 /usr/local/bin/ccl
 
 # PGloader
 WORKDIR /opt/src/
-RUN git clone https://github.com/keboola/pgloader.git
+RUN git clone https://github.com/dimitri/pgloader.git
 WORKDIR /opt/src/pgloader
-RUN git checkout -b dev origin/dev
-#RUN mkdir -p build/bin
+RUN git checkout tags/v3.4.1
 RUN make CL=ccl DYNSIZE=1024
 RUN cp /opt/src/pgloader/build/bin/pgloader /usr/local/bin
 
