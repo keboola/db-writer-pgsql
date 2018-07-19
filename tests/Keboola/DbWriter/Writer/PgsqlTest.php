@@ -159,6 +159,13 @@ class PgsqlTest extends BaseTest
         $csv = new CsvFile($resFilename);
         $csv->writeRow(["id","name","glasses","age"]);
         foreach ($res as $row) {
+            if (isset($row['glasses']) && $row['glasses'] === null) {
+                $this->fail('Non nullable column cannot contains null value');
+            }
+            if (isset($row['age']) && $row['age'] === "") {
+                $this->fail('Nullable column cannot contains empty string value');
+            }
+
             $csv->writeRow($row);
         }
 
