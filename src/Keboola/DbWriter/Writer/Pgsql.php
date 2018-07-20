@@ -206,40 +206,45 @@ class Pgsql extends Writer implements WriterInterface
 
         $this->logger->info(sprintf("Uploading data into staging table '%s'", $stagingTable['dbName']));
 
-        $process = new Process($psqlCommand, null, ['PGPASSWORD' => $this->dbParams['password']]);
-        $process->setTimeout(null);
+        try {
+            $process = new Process($psqlCommand, null, ['PGPASSWORD' => $this->dbParams['password']]);
+            $process->setTimeout(null);
 
-        $process->run();
+            $process->run();
 
-        if ($process->isSuccessful()) {
-            $this->logger->info($process->getOutput());
-            $this->logger->info(sprintf("Data imported into staging table '%s'", $stagingTable['dbName']));
-        } else {
-            throw new UserException("Write process failed: " . $process->getErrorOutput(), 400);
-        }
-
-        // move to destination table
-        $this->logger->info("Moving to destination table");
-        $columns = [];
-        foreach ($table['items'] as $col) {
-            $type = $this->getColumnDataTypeSql($col);
-            $colName = $this->escape($col['dbName']);
-            $srcColName = $colName;
-            if (!empty($col['nullable'])) {
-                $srcColName = sprintf("NULLIF(%s, '')", $colName);
+            if ($process->isSuccessful()) {
+                $this->logger->info($process->getOutput());
+                $this->logger->info(sprintf("Data imported into staging table '%s'", $stagingTable['dbName']));
+            } else {
+                throw new UserException("Write process failed: " . $process->getErrorOutput(), 400);
             }
-            $column = sprintf('CAST(%s AS %s) as %s', $srcColName, $type, $colName);
-            $columns[] = $column;
-        }
-        $query = sprintf(
-            'INSERT INTO %s SELECT %s FROM %s',
-            $this->escape($table['dbName']),
-            implode(',', $columns),
-            $this->escape($stagingTable['dbName'])
-        );
-        $this->execQuery($query);
 
-        $this->logger->info(sprintf("Data moved into table '%s'", $table['dbName']));
+            // move to destination table
+            $this->logger->info("Moving to destination table");
+            $columns = [];
+            foreach ($table['items'] as $col) {
+                $type = $this->getColumnDataTypeSql($col);
+                $colName = $this->escape($col['dbName']);
+                $srcColName = $colName;
+                if (!empty($col['nullable'])) {
+                    $srcColName = sprintf("NULLIF(%s, '')", $colName);
+                }
+                $column = sprintf('CAST(%s AS %s) as %s', $srcColName, $type, $colName);
+                $columns[] = $column;
+            }
+            $query = sprintf(
+                'INSERT INTO %s SELECT %s FROM %s',
+                $this->escape($table['dbName']),
+                implode(',', $columns),
+                $this->escape($stagingTable['dbName'])
+            );
+            $this->execQuery($query);
+
+            $this->logger->info(sprintf("Data moved into table '%s'", $table['dbName']));
+        } catch (\Exception $e) {
+            $this->drop($stagingTable['dbName']);
+            throw $e;
+        }
 
         // drop staging
         $this->drop($stagingTable['dbName']);
