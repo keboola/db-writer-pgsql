@@ -150,11 +150,18 @@ class Pgsql extends Writer implements WriterInterface
     private function createStage(array $table)
     {
         $sqlColumns = array_map(function ($col) {
-            return sprintf(
-                "%s VARCHAR (%s) NULL",
-                $this->escape($col['dbName']),
-                (!empty($col['size']) && strstr(strtolower($col['type']), 'char') !== false) ? $col['size'] : '255'
-            );
+            if (strtolower($col['type']) === 'text') {
+                return sprintf(
+                    "%s TEXT NULL",
+                    $this->escape($col['dbName'])
+                );
+            } else {
+                return sprintf(
+                    "%s %s NULL",
+                    $this->escape($col['dbName']),
+                    $this->getStageColumnDataTypeSql($col)
+                );
+            }
         }, array_filter($table['items'], function ($item) {
             return (strtolower($item['type']) !== 'ignore');
         }));
@@ -389,5 +396,20 @@ class Pgsql extends Writer implements WriterInterface
         }
 
         return $type;
+    }
+
+    private function getStageColumnDataTypeSql(array $columnDefinition)
+    {
+        if (strtolower($columnDefinition['type']) === 'text') {
+            return 'TEXT';
+        }
+        else {
+            $isTextType = strstr(strtolower($columnDefinition['type']), 'char') !== false;
+
+            return sprintf(
+                "VARCHAR(%s)",
+                ($isTextType && !empty($columnDefinition['size'])) ? $columnDefinition['size'] : '255'
+            );
+        }
     }
 }
