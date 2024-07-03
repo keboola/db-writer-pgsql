@@ -114,13 +114,13 @@ class Pgsql extends Writer implements WriterInterface
         $this->execQuery(sprintf('DROP TABLE IF EXISTS %s;', $this->escape($tableName)));
     }
 
-    public function create(array $table, bool $temp = false): void
+    public function create(array $table): void
     {
         $this->reconnectIfDisconnected();
 
         // Determine the base create statement based on server version and temp flag
         $baseCreateStmt = 'CREATE';
-        if ($temp && (version_compare($this->serverVersion, '7.1', 'ge'))) {
+        if ($table['useTempTable'] && (version_compare($this->serverVersion, '7.1', 'ge'))) {
             $baseCreateStmt .= ' TEMPORARY';
         }
 
