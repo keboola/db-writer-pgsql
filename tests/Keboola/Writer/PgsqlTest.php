@@ -164,6 +164,41 @@ class PgsqlTest extends BaseTest
         $this->assertFileEquals($this->getInputCsv($table['tableId']), $resFilename);
     }
 
+    public function testWriteTempTable(): void
+    {
+        // simple table
+        $table = $this->config['parameters']['tables'][0];
+        $table['incremental'] = false;
+        $table['useTempTable'] = true;
+        $csvFile = new SplFileInfo($this->getInputCsv($table['tableId']));
+
+        $this->writer->drop($table['dbName']);
+        $this->writer->create($table);
+        $this->assertTrue(
+            $this->logHandler->hasInfoThatMatches('/PgSQL server version: \d+/')
+        );
+        $this->assertTrue(
+            $this->logHandler->hasInfoThatContains(sprintf(
+                'CREATE TEMPORARY TABLE IF NOT EXISTS "%s"',
+                $table['dbName']
+            ))
+        );
+        $this->writer->write($csvFile, $table);
+
+        $conn = $this->writer->getConnection();
+        $stmt = $conn->query("SELECT * FROM {$table['dbName']} ORDER BY id ASC");
+        $res = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $resFilename = tempnam('/tmp', 'db-wr-test-tmp');
+        $csv = new CsvWriter($resFilename);
+        $csv->writeRow(['id','name','glasses']);
+        foreach ($res as $row) {
+            $csv->writeRow($row);
+        }
+
+        $this->assertFileEquals($this->getInputCsv($table['tableId']), $resFilename);
+    }
+
     public function testWriteNull(): void
     {
         $tables = array_filter($this->config['parameters']['tables'], function ($table) {

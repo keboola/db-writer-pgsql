@@ -118,12 +118,19 @@ class Pgsql extends Writer implements WriterInterface
     {
         $this->reconnectIfDisconnected();
 
-        // Table can already exist (incremental load), CREATE TABLE IF NOT EXISTS is supported for PgSQL >= 9.1
+        // Determine the base create statement based on server version and temp flag
+        $baseCreateStmt = 'CREATE';
+        if ($table['useTempTable'] && (version_compare($this->serverVersion, '7.1', 'ge'))) {
+            $baseCreateStmt .= ' TEMPORARY';
+        }
+
+        // Determine if "IF NOT EXISTS" can be used
         // https://stackoverflow.com/a/7438222
         $createTableStmt =
             $this->serverVersion === self::SERVER_VERSION_UNKNOWN
             || version_compare($this->serverVersion, '9.1', 'ge') ?
-                'CREATE TABLE IF NOT EXISTS' : 'CREATE TABLE';
+                "{$baseCreateStmt} TABLE IF NOT EXISTS" : "{$baseCreateStmt} TABLE";
+
         $sql = sprintf(
             '%s %s (',
             $createTableStmt,
