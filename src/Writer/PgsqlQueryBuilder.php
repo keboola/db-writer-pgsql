@@ -48,7 +48,9 @@ SQL;
 
         $createTableStmt = sprintf(
             $createTableStmt,
-            $isTempTable ? 'TEMPORARY' : '',
+            $isTempTable && version_compare($connection->getServerVersion(), '7.1', 'ge') ?
+                'TEMPORARY' :
+                '',
         );
 
         $filteredItems = array_filter($items, function ($item) {

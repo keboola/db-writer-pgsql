@@ -7,6 +7,7 @@ namespace Keboola\DbWriter;
 use Keboola\Component\Config\BaseConfig;
 use Keboola\Component\UserException;
 use Keboola\DbWriter\Configuration\PgsqlTableNodesDecorator;
+use Keboola\DbWriter\Configuration\ValueObject\PgsqlExportConfig;
 use Keboola\DbWriterConfig\Configuration\ConfigDefinition;
 use Keboola\DbWriterConfig\Configuration\ConfigRowDefinition;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -41,5 +42,13 @@ class PgsqlApplication extends Application
         } catch (InvalidConfigurationException $e) {
             throw new UserException($e->getMessage(), 0, $e);
         }
+    }
+
+    protected function createExportConfig(array $table): PgsqlExportConfig
+    {
+        return PgsqlExportConfig::fromArray(
+            $table,
+            $this->getConfig()->getInputTables(),
+        );
     }
 }
