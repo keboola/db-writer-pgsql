@@ -39,9 +39,6 @@ class Pgsql extends BaseWriter
 
         // create destination table if not exists
         if (!$this->adapter->tableExists($exportConfig->getDbName())) {
-            if ($exportConfig->useTempTable()) {
-                $this->logger->info(sprintf('Creating temporary table "%s"', $exportConfig->getDbName()));
-            }
             $this->adapter->create(
                 $exportConfig->getDbName(),
                 $exportConfig->useTempTable(),
@@ -61,9 +58,6 @@ class Pgsql extends BaseWriter
     protected function writeFull(ExportConfig $exportConfig): void
     {
         $this->adapter->drop($exportConfig->getDbName());
-        if ($exportConfig->useTempTable()) {
-            $this->logger->info(sprintf('Creating temporary table "%s"', $exportConfig->getDbName()));
-        }
         $this->adapter->create(
             $exportConfig->getDbName(),
             $exportConfig->useTempTable(),

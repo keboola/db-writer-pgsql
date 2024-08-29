@@ -1,7 +1,7 @@
 Connecting to DSN "pgsql:host=pgsql;port=5432;dbname=postgres"...
 Creating PDO connection to "pgsql:host=pgsql;port=5432;dbname=postgres".
 PgSQL server version: %s
-Temporary Table "%s" created
+Creating temporary table "%s"
 Uploading data into staging table "%s".
 COPY %s
 Data imported into staging table "%s".

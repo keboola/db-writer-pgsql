@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # PHP
 RUN docker-php-ext-install pdo pdo_pgsql pgsql
 
-## Composer - deps always cached unless changed
+# Composer - deps always cached unless changed
 # First copy only composer files
 COPY composer.* /code/
 

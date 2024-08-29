@@ -41,7 +41,7 @@ readonly class PgsqlExportConfig extends ExportConfig
         );
     }
 
-    public static function fromArray(array $config, array $inputMapping): self
+    public static function fromArray(array $config, array $inputMapping, ?DatabaseConfig $databaseConfig = null): self
     {
         $filteredInputMapping = array_filter($inputMapping, fn($v) => $v['source'] === $config['tableId']);
         if (count($filteredInputMapping) === 0) {
