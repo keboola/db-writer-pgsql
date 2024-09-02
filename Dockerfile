@@ -1,34 +1,41 @@
-FROM keboola/db-component-ssh-proxy:latest AS sshproxy
-FROM php:7.4-cli
+FROM php:8.2-cli-buster
 
-RUN apt-get update && apt-get install -y wget curl make git bzip2 time libzip-dev openssl gnupg lsb-release
-RUN apt-get install -y patch unzip libsqlite3-dev gawk freetds-dev subversion
+ARG COMPOSER_FLAGS="--prefer-dist --no-interaction"
+ARG DEBIAN_FRONTEND=noninteractive
+ENV COMPOSER_ALLOW_SUPERUSER 1
+ENV COMPOSER_PROCESS_TIMEOUT 3600
 
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
-    && curl -sL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && apt-get update
+WORKDIR /code/
 
-RUN apt-get install -y libpq-dev postgresql-client --no-install-recommends
+COPY docker/php-prod.ini /usr/local/etc/php/php.ini
+COPY docker/composer-install.sh /tmp/composer-install.sh
 
-# required to bypass https://github.com/debuerreotype/debuerreotype/issues/10
-RUN mkdir -p /usr/share/man/man1 /usr/share/man/man7 \
-    && apt-get install -y postgresql-contrib --no-install-recommends
+# Deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        wget curl make git bzip2 time libzip-dev openssl \
+        patch unzip libsqlite3-dev gawk freetds-dev subversion \
+        libpq-dev locales postgresql postgresql-contrib ssh \
+	&& rm -r /var/lib/apt/lists/* \
+	&& sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
+	&& locale-gen \
+	&& chmod +x /tmp/composer-install.sh \
+	&& /tmp/composer-install.sh
 
 # PHP
 RUN docker-php-ext-install pdo pdo_pgsql pgsql
 
-# Composer
-WORKDIR /root
-RUN cd \
-  && curl -sS https://getcomposer.org/installer | php \
-  && ln -s /root/composer.phar /usr/local/bin/composer
+# Composer - deps always cached unless changed
+# First copy only composer files
+COPY composer.* /code/
 
-# Main
-ADD . /code
-WORKDIR /code
-RUN echo "memory_limit = -1" >> /usr/local/etc/php/php.ini
-RUN echo "date.timezone = \"Europe/Prague\"" >> /usr/local/etc/php/php.ini
-RUN composer selfupdate && composer install --no-interaction
+# Download dependencies, but don't run scripts or init autoloaders as the app is missing
+RUN composer install $COMPOSER_FLAGS --no-scripts --no-autoloader
 
-COPY --from=sshproxy /root/.ssh /root/.ssh
-CMD php ./run.php --data=/data
+# Copy rest of the app
+COPY . /code/
+
+# Run normal composer - all deps are cached already
+RUN composer install $COMPOSER_FLAGS
+
+CMD ["php", "/code/src/run.php"]
+
