@@ -24,7 +24,7 @@ jobs:
       is_semantic_tag: ${{ steps.tag.outputs.is_semantic_tag }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Print Docker version
         run: |
           docker -v
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Pull image from ECR
         uses: keboola/action-pull-from-ecr@master
         with:
@@ -70,7 +70,7 @@ jobs:
           tag_as_latest: true
       - name: Run tests
         run: |
-          docker-compose run --rm app composer ci
+          docker compose run --rm app composer ci
 
   tests-in-kbc:
     needs: build
