@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "de67a23092a32cf0a18c51c9720a3fcf",
+    "content-hash": "2bce1833991980437b61e4217f9dc829",
     "packages": [
         {
             "name": "keboola/common-exceptions",
@@ -48,16 +48,16 @@
         },
         {
             "name": "keboola/db-writer-common",
-            "version": "5.10.0",
+            "version": "5.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keboola/db-writer-common.git",
-                "reference": "a1282fe96530e1c2b674d2a770efb60b0a3de668"
+                "reference": "d1fa77be1ee3ffb6e18dadf7f1f5e13d7255c006"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/a1282fe96530e1c2b674d2a770efb60b0a3de668",
-                "reference": "a1282fe96530e1c2b674d2a770efb60b0a3de668",
+                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/d1fa77be1ee3ffb6e18dadf7f1f5e13d7255c006",
+                "reference": "d1fa77be1ee3ffb6e18dadf7f1f5e13d7255c006",
                 "shasum": ""
             },
             "require": {
@@ -106,10 +106,9 @@
                 "writer"
             ],
             "support": {
-                "issues": "https://github.com/keboola/db-writer-common/issues",
-                "source": "https://github.com/keboola/db-writer-common/tree/5.10.0"
+                "source": "https://github.com/keboola/db-writer-common/tree/5.11.0"
             },
-            "time": "2022-11-18T11:22:08+00:00"
+            "time": "2024-09-04T13:20:54+00:00"
         },
         {
             "name": "keboola/php-component",
@@ -3154,5 +3153,5 @@
         "ext-json": "*",
         "ext-pgsql": "*"
     },
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.6.0"
 }
