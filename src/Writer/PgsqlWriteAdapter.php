@@ -165,4 +165,8 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
         $this->logger->info(sprintf('Data moved into table "%s".', $exportConfig->getDbName()));
     }
+
+    public function validateTable(string $tableName, array $items): void
+    {
+    }
 }
