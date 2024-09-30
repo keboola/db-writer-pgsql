@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "52d938e325dc2011c3b7ad7cd7990d31",
+    "content-hash": "1253a0a5f083bc4af0e32bd289a107d0",
     "packages": [
         {
             "name": "keboola/common-exceptions",
@@ -167,16 +167,16 @@
         },
         {
             "name": "keboola/db-writer-config",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keboola/db-writer-config.git",
-                "reference": "48c1e5fbe39fae925e905355e7c0e8621b7220cc"
+                "reference": "1b35f0db5e506fe4067714fe68a2edb31dc9b3eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keboola/db-writer-config/zipball/48c1e5fbe39fae925e905355e7c0e8621b7220cc",
-                "reference": "48c1e5fbe39fae925e905355e7c0e8621b7220cc",
+                "url": "https://api.github.com/repos/keboola/db-writer-config/zipball/1b35f0db5e506fe4067714fe68a2edb31dc9b3eb",
+                "reference": "1b35f0db5e506fe4067714fe68a2edb31dc9b3eb",
                 "shasum": ""
             },
             "require": {
@@ -212,9 +212,9 @@
             ],
             "description": "Config definition for database writer component",
             "support": {
-                "source": "https://github.com/keboola/db-writer-config/tree/0.1.1"
+                "source": "https://github.com/keboola/db-writer-config/tree/0.1.2"
             },
-            "time": "2024-03-13T14:01:23+00:00"
+            "time": "2024-09-30T11:23:32+00:00"
         },
         {
             "name": "keboola/php-component",
