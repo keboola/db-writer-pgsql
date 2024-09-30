@@ -107,23 +107,23 @@
         },
         {
             "name": "keboola/db-writer-common",
-            "version": "6.1.0",
+            "version": "6.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keboola/db-writer-common.git",
-                "reference": "64e0f61b87750191f558e1edce8127fb818ec6a1"
+                "reference": "50705bf871aa04287101f3232debf9419fd67689"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/64e0f61b87750191f558e1edce8127fb818ec6a1",
-                "reference": "64e0f61b87750191f558e1edce8127fb818ec6a1",
+                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/50705bf871aa04287101f3232debf9419fd67689",
+                "reference": "50705bf871aa04287101f3232debf9419fd67689",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "ext-pdo": "*",
-                "keboola/db-writer-adapter": "^0.1.0",
-                "keboola/db-writer-config": "^0.1.0",
+                "keboola/db-writer-adapter": "^0.1",
+                "keboola/db-writer-config": "^0.1",
                 "keboola/php-component": "^9.4",
                 "keboola/retry": "^0.5.1",
                 "keboola/ssh-tunnel": "^2.0",
@@ -161,9 +161,9 @@
                 "writer"
             ],
             "support": {
-                "source": "https://github.com/keboola/db-writer-common/tree/6.1.0"
+                "source": "https://github.com/keboola/db-writer-common/tree/6.1.1"
             },
-            "time": "2024-08-29T07:13:45+00:00"
+            "time": "2024-09-30T11:47:06+00:00"
         },
         {
             "name": "keboola/db-writer-config",
