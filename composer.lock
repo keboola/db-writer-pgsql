@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f6f7bee693a8327b89d48f1dc88ed36",
+    "content-hash": "77e9ce411cf72f7064004f4c08e46011",
     "packages": [
         {
             "name": "keboola/common-exceptions",
@@ -107,16 +107,16 @@
         },
         {
             "name": "keboola/db-writer-common",
-            "version": "dev-ondra-fix-ssh-tunnel",
+            "version": "6.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keboola/db-writer-common.git",
-                "reference": "476e7bee45ef5935688081231ed32fff9f9267a9"
+                "reference": "7713b5b7cba10ffee5606adc00c978d86513007a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/476e7bee45ef5935688081231ed32fff9f9267a9",
-                "reference": "476e7bee45ef5935688081231ed32fff9f9267a9",
+                "url": "https://api.github.com/repos/keboola/db-writer-common/zipball/7713b5b7cba10ffee5606adc00c978d86513007a",
+                "reference": "7713b5b7cba10ffee5606adc00c978d86513007a",
                 "shasum": ""
             },
             "require": {
@@ -161,9 +161,9 @@
                 "writer"
             ],
             "support": {
-                "source": "https://github.com/keboola/db-writer-common/tree/ondra-fix-ssh-tunnel"
+                "source": "https://github.com/keboola/db-writer-common/tree/6.2.0"
             },
-            "time": "2024-10-06T19:29:42+00:00"
+            "time": "2024-10-10T08:38:33+00:00"
         },
         {
             "name": "keboola/db-writer-config",
@@ -3455,9 +3455,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "keboola/db-writer-common": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
