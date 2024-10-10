@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Keboola\DbWriter\Configuration\ValueObject;
 
+use Keboola\DbWriter\Writer\SshTunnel;
 use Keboola\DbWriterConfig\Configuration\ValueObject\DatabaseConfig;
 use Keboola\DbWriterConfig\Configuration\ValueObject\ExportConfig;
 use Keboola\DbWriterConfig\Configuration\ValueObject\ItemConfig;
@@ -58,7 +59,7 @@ readonly class PgsqlExportConfig extends ExportConfig
         return new self(
             $config['data_dir'],
             $config['writer_class'],
-            DatabaseConfig::fromArray($config['db']),
+            $databaseConfig ?? DatabaseConfig::fromArray($config['db']),
             $config['tableId'],
             $config['dbName'],
             $config['incremental'] ?? false,

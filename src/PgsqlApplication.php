@@ -8,8 +8,10 @@ use Keboola\Component\Config\BaseConfig;
 use Keboola\Component\UserException;
 use Keboola\DbWriter\Configuration\PgsqlTableNodesDecorator;
 use Keboola\DbWriter\Configuration\ValueObject\PgsqlExportConfig;
+use Keboola\DbWriter\Writer\SshTunnel;
 use Keboola\DbWriterConfig\Configuration\ConfigDefinition;
 use Keboola\DbWriterConfig\Configuration\ConfigRowDefinition;
+use Keboola\DbWriterConfig\Configuration\ValueObject\DatabaseConfig;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 
 class PgsqlApplication extends Application
@@ -49,6 +51,7 @@ class PgsqlApplication extends Application
         return PgsqlExportConfig::fromArray(
             $table,
             $this->getConfig()->getInputTables(),
+            $this->createDatabaseConfig($table['db']),
         );
     }
 }
