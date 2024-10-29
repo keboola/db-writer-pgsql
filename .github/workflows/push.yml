@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') && needs.build.outputs.is_semantic_tag == 'true'
     steps:
-      - name: Set tag in the Deloper Portal
+      - name: Set tag in the Developer Portal
         uses: keboola/action-set-tag-developer-portal@master
         with:
           vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
@@ -143,7 +143,7 @@ jobs:
           password: ${{ env.KBC_DEVELOPERPORTAL_PASSWORD }}
           tag: ${{ needs.build.outputs.app_image_tag }}
 
-      - name: Set tag in the Deloper Portal (Disabled PGSQL logs)
+      - name: Set tag in the Developer Portal (Disabled PGSQL logs)
         uses: keboola/action-set-tag-developer-portal@master
         with:
           vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
