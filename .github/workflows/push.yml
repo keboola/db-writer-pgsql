@@ -4,9 +4,11 @@ concurrency: ci-${{ github.ref }} # to avoid tag collisions in the ECR
 env:
   # Test image, must be same in the docker-compose.yml if used
   APP_IMAGE: keboola/db-writer-pgsql
+  APP_IMAGE_DISABLED_PGSQL_LOGS: keboola/db-writer-pgsql-disabled-pgsql-logs
   # Developer portal login
   KBC_DEVELOPERPORTAL_VENDOR: "keboola"
   KBC_DEVELOPERPORTAL_APP: "keboola.wr-db-pgsql"
+  KBC_DEVELOPERPORTAL_APP_DISABLED_LOGS: "keboola.wr-db-pgsql-disabled-pgsql-logs"
   KBC_DEVELOPERPORTAL_USERNAME: "keboola+github_actions_db_writer_pgsql"
   KBC_DEVELOPERPORTAL_PASSWORD: ${{ secrets.KBC_DEVELOPERPORTAL_PASSWORD }}
   # DockerHub login
@@ -32,7 +34,9 @@ jobs:
         if: env.DOCKERHUB_TOKEN
         run: docker login --username "$DOCKERHUB_USER" --password "$DOCKERHUB_TOKEN"
       - name: Build image
-        run: docker build -t $APP_IMAGE .
+        run: docker build --target base -t $APP_IMAGE .
+      - name: Build image (Disabled PGSQL logs)
+        run: docker build --target disabled-pgsql-logs -t $APP_IMAGE_DISABLED_PGSQL_LOGS .
       - name: Set image tag
         id: tag
         run: |
@@ -51,6 +55,17 @@ jobs:
           tag: ${{ steps.tag.outputs.app_image_tag }}
           push_latest: ${{ steps.tag.outputs.is_semantic_tag }}
           source_image: ${{ env.APP_IMAGE}}
+
+      - name: Push image to ECR (Disabled PGSQL logs)
+        uses: keboola/action-push-to-ecr@master
+        with:
+          vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
+          app_id: ${{ env.KBC_DEVELOPERPORTAL_APP_DISABLED_LOGS }}
+          username: ${{ env.KBC_DEVELOPERPORTAL_USERNAME }}
+          password: ${{ env.KBC_DEVELOPERPORTAL_PASSWORD }}
+          tag: ${{ steps.tag.outputs.app_image_tag }}
+          push_latest: ${{ steps.tag.outputs.is_semantic_tag }}
+          source_image: ${{ env.APP_IMAGE_DISABLED_PGSQL_LOGS}}
 
   tests:
     needs: build
@@ -72,6 +87,26 @@ jobs:
         run: |
           docker compose run --rm app composer ci
 
+  tests-disabled-logs:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Pull image from ECR
+        uses: keboola/action-pull-from-ecr@master
+        with:
+          vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
+          app_id: ${{ env.KBC_DEVELOPERPORTAL_APP_DISABLED_LOGS }}
+          username: ${{ env.KBC_DEVELOPERPORTAL_USERNAME }}
+          password: ${{ env.KBC_DEVELOPERPORTAL_PASSWORD }}
+          tag: ${{ needs.build.outputs.app_image_tag }}
+          target_image: ${{ env.APP_IMAGE}}
+          tag_as_latest: true
+      - name: Run tests
+        run: |
+          docker compose run --rm app composer ci
+
   tests-in-kbc:
     needs: build
     runs-on: ubuntu-latest
@@ -81,6 +116,13 @@ jobs:
         with:
           token: ${{ env.KBC_STORAGE_TOKEN }}
           componentId: ${{ env.KBC_DEVELOPERPORTAL_APP }}
+          tag: ${{ needs.build.outputs.app_image_tag }}
+          configs: ${{ env.KBC_TEST_PROJECT_CONFIGS }}
+      - name: Run KBC test jobs (disabled logs)
+        uses: keboola/action-run-configs-parallel@master
+        with:
+          token: ${{ env.KBC_STORAGE_TOKEN }}
+          componentId: ${{ env.KBC_DEVELOPERPORTAL_APP_DISABLED_LOGS }}
           tag: ${{ needs.build.outputs.app_image_tag }}
           configs: ${{ env.KBC_TEST_PROJECT_CONFIGS }}
 
@@ -97,6 +139,15 @@ jobs:
         with:
           vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
           app_id: ${{ env.KBC_DEVELOPERPORTAL_APP }}
+          username: ${{ env.KBC_DEVELOPERPORTAL_USERNAME }}
+          password: ${{ env.KBC_DEVELOPERPORTAL_PASSWORD }}
+          tag: ${{ needs.build.outputs.app_image_tag }}
+
+      - name: Set tag in the Deloper Portal (Disabled PGSQL logs)
+        uses: keboola/action-set-tag-developer-portal@master
+        with:
+          vendor: ${{ env.KBC_DEVELOPERPORTAL_VENDOR }}
+          app_id: ${{ env.KBC_DEVELOPERPORTAL_APP_DISABLED_LOGS }}
           username: ${{ env.KBC_DEVELOPERPORTAL_USERNAME }}
           password: ${{ env.KBC_DEVELOPERPORTAL_PASSWORD }}
           tag: ${{ needs.build.outputs.app_image_tag }}
