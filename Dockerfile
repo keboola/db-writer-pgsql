@@ -1,4 +1,4 @@
-FROM php:8.2-cli-buster AS base
+FROM php:8.2-cli-bookworm AS base
 
 ARG COMPOSER_FLAGS="--prefer-dist --no-interaction"
 ARG DEBIAN_FRONTEND=noninteractive
@@ -8,18 +8,27 @@ ENV COMPOSER_PROCESS_TIMEOUT=3600
 WORKDIR /code/
 
 COPY docker/php-prod.ini /usr/local/etc/php/php.ini
+COPY docker/ssh-config /root/.ssh/config
 COPY docker/composer-install.sh /tmp/composer-install.sh
 
-# Deps
+# Install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         wget curl make git bzip2 time libzip-dev openssl \
         patch unzip libsqlite3-dev gawk freetds-dev subversion \
-        libpq-dev locales postgresql postgresql-contrib ssh \
-	&& rm -r /var/lib/apt/lists/* \
-	&& sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
-	&& locale-gen \
-	&& chmod +x /tmp/composer-install.sh \
-	&& /tmp/composer-install.sh
+        locales postgresql ssh gnupg lsb-release \
+    && echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && curl -sL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq-dev \
+        postgresql-client \
+        libicu-dev \
+        postgresql-contrib \
+    && rm -r /var/lib/apt/lists/* \
+    && sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
+    && locale-gen \
+    && chmod +x /tmp/composer-install.sh \
+    && /tmp/composer-install.sh
 
 # PHP
 RUN docker-php-ext-install pdo pdo_pgsql pgsql
