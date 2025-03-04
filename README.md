@@ -2,9 +2,9 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/keboola/db-writer-pgsql/blob/master/LICENSE.md)
 
-Writes data to pgsql Database.
+This component exports data from Keboola to a PostgreSQL database.
 
-## Example configuration
+## Example Configuration
 
 ```json
     {
@@ -63,10 +63,12 @@ Writes data to pgsql Database.
 
 ## Development
 
-App is developed on localhost using TDD.
+This application is developed locally using Test-Driven Development (TDD).
 
-1. Clone from repository: `git clone git@github.com:keboola/db-writer-pgsql.git`
-2. Change directory: `cd db-writer-pgsql`
-3. Install composer dependencies: `docker-compose run --rm dev composer install`
+**Steps to set up:**
+
+1. Clone the repository: `git clone git@github.com:keboola/db-writer-pgsql.git`
+2. Navigate to the project directory: `cd db-writer-pgsql`
+3. Install dependencies: `docker-compose run --rm dev composer install`
 4. Develop
 5. Run tests: `docker-compose run --rm dev composer tests` or all checks: `docker-compose run --rm dev composer ci`
