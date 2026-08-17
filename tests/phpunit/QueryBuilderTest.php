@@ -96,7 +96,7 @@ SQL;
     public function testForeignKeyReferencesQuery(): void
     {
         $expectedQuery = <<<SQL
-SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table"
+SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table", c.confdeltype AS "onDelete"
 FROM pg_constraint c
 WHERE c.contype = 'f' AND c.confrelid = quote_ident('test')::regclass AND c.conrelid <> c.confrelid;
 SQL;
@@ -106,6 +106,17 @@ SQL;
         $query = $queryBuilder->foreignKeyReferencesQueryStatement($this->connection, 'test');
 
         Assert::assertEquals($expectedQuery, $query);
+    }
+
+    public function testBaseTableExistsQuery(): void
+    {
+        $queryBuilder = new PgsqlQueryBuilder();
+
+        Assert::assertEquals(
+            'SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() '
+            . 'AND table_type = \'BASE TABLE\' AND table_name = \'test\'',
+            $queryBuilder->baseTableExistsQueryStatement($this->connection, 'test'),
+        );
     }
 
     public function testTruncatePrivilegeQuery(): void

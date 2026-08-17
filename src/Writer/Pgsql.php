@@ -29,6 +29,10 @@ class Pgsql extends BaseWriter
      */
     protected function writeIncremental(ExportConfig $exportConfig): void
     {
+        if ($exportConfig->preserveTargetTable()) {
+            $this->assertTargetTable($exportConfig);
+        }
+
         // write to staging table
         $stageTableName = $this->adapter->generateTmpName($exportConfig->getDbName());
 
@@ -40,10 +44,6 @@ class Pgsql extends BaseWriter
             $exportConfig->hasPrimaryKey() ? $exportConfig->getPrimaryKey() : null,
         );
         $this->adapter->writeData($stageTableName, $exportConfig);
-
-        if ($exportConfig->preserveTargetTable()) {
-            $this->assertTargetTable($exportConfig);
-        }
 
         // create destination table if not exists
         if (!$exportConfig->preserveTargetTable() && !$this->adapter->tableExists($exportConfig->getDbName())) {
@@ -92,10 +92,11 @@ class Pgsql extends BaseWriter
      */
     private function assertTargetTable(PgsqlExportConfig $exportConfig): void
     {
-        if (!$this->adapter->tableExists($exportConfig->getDbName())) {
+        if (!$this->adapter->baseTableExists($exportConfig->getDbName())) {
             throw new UserException(sprintf(
-                'Table "%s" does not exist in schema "%s". '
-                . 'Create it in the database first or disable the "preserveTargetTable" option.',
+                'Table "%s" not found in schema "%s". Create it in the database first, grant privileges on it '
+                . 'to the database user (a table without any granted privilege is not visible), or disable '
+                . 'the "preserveTargetTable" option. Views are not supported by the option.',
                 $exportConfig->getDbName(),
                 $exportConfig->getDatabaseConfig()->getSchema(),
             ));

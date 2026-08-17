@@ -1,1 +1,1 @@
-Rows of table "simple" cannot be deleted, they are referenced by rows of another table: %A Delete the referencing rows or set the foreign key to ON DELETE CASCADE.
+Rows of table "simple" cannot be deleted, they are referenced by rows of another table: %A Delete the referencing rows first.

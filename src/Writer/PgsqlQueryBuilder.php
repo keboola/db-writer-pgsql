@@ -36,6 +36,15 @@ SQL;
         );
     }
 
+    public function baseTableExistsQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf(
+            'SELECT table_name FROM information_schema.tables '
+            . 'WHERE table_schema = current_schema() AND table_type = \'BASE TABLE\' AND table_name = %s',
+            $connection->quote($tableName),
+        );
+    }
+
     public function truncateQueryStatement(Connection $connection, string $tableName): string
     {
         return sprintf('TRUNCATE TABLE %s;', $connection->quoteIdentifier($tableName));
@@ -53,7 +62,7 @@ SQL;
     public function foreignKeyReferencesQueryStatement(Connection $connection, string $tableName): string
     {
         $sql = <<<SQL
-SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table"
+SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table", c.confdeltype AS "onDelete"
 FROM pg_constraint c
 WHERE c.contype = 'f' AND c.confrelid = quote_ident(%s)::regclass AND c.conrelid <> c.confrelid;
 SQL;

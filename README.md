@@ -80,13 +80,21 @@ replaces its content:
 ```
 
 - The table must already exist in the configured schema, otherwise the job fails with a user
-  error. The same applies to an **Incremental Load** with this option enabled.
-- All configured columns must exist in the table; other columns of the table are left to their
-  default values. Column order in the table does not matter.
+  error. The same applies to an **Incremental Load** with this option enabled. Views are not
+  supported.
+- All configured columns must exist in the table; other columns of the table keep their default
+  value (or `NULL`), so a `NOT NULL` column without a default must be part of the configuration.
+  Column order in the table does not matter, the column types of the table are used.
 - Structure, owner, indexes, constraints, triggers and privileges of the table are preserved.
 - The rows are removed with `TRUNCATE`, or with `DELETE` when the table is referenced by a
   foreign key of another table or when the `TRUNCATE` privilege is not granted. Removing the rows
   and inserting the new ones runs in a single transaction.
+- A table referenced by a foreign key with `ON DELETE CASCADE`, `SET NULL` or `SET DEFAULT` is
+  **refused** with a user error, deleting its rows would change data of a table which is not part
+  of the configuration. Rows referenced by a `NO ACTION` / `RESTRICT` foreign key must be deleted
+  from the referencing table first.
+- Because the rows are deleted (not truncated) in those cases, row level `DELETE` triggers do
+  fire and dead tuples are left behind, autovacuum has to reclaim the space.
 - Required privileges on the table are `SELECT`, `INSERT` and `DELETE` (`TRUNCATE` is used when
   granted). `CREATE` on the schema is **still** required, the staging table the data are loaded
   into is created there.

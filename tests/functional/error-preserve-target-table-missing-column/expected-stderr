@@ -1,1 +1,1 @@
-Columns "name" not found in destination table "simple". Found columns: "id".
+Columns "name" not found in destination table "simple". Found columns: "id". Columns the database user has no privileges on are not visible either.

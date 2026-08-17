@@ -82,6 +82,16 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
     }
 
     /**
+     * Unlike tableExists() this ignores views, they cannot be truncated nor deleted from.
+     */
+    public function baseTableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchAll(
+            $this->queryBuilder->baseTableExistsQueryStatement($this->connection, $tableName),
+        );
+    }
+
+    /**
      * @param ItemConfig[] $items
      * @throws UserException
      */
@@ -101,7 +111,8 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
         if ($missingColumns) {
             throw new UserException(sprintf(
-                'Columns "%s" not found in destination table "%s". Found columns: "%s".',
+                'Columns "%s" not found in destination table "%s". Found columns: "%s". '
+                . 'Columns the database user has no privileges on are not visible either.',
                 implode('", "', $missingColumns),
                 $tableName,
                 implode('", "', $dbColumns),
@@ -141,12 +152,13 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
      */
     private function removeAllRows(string $tableName): void
     {
-        $referencingTables = $this->getReferencingTables($tableName);
-        if ($referencingTables) {
+        $references = $this->getReferences($tableName);
+        if ($references) {
+            $this->assertNoPropagatingReference($tableName, $references);
             $this->logger->info(sprintf(
                 'Table "%s" is referenced by foreign keys of tables "%s", deleting rows instead of truncating.',
                 $tableName,
-                implode('", "', $referencingTables),
+                implode('", "', array_keys($references)),
             ));
             $this->deleteAllRows($tableName);
             return;
@@ -181,7 +193,7 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
             if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
                 throw new UserException(sprintf(
                     'Rows of table "%s" cannot be deleted, they are referenced by rows of another table: %s '
-                    . 'Delete the referencing rows or set the foreign key to ON DELETE CASCADE.',
+                    . 'Delete the referencing rows first.',
                     $tableName,
                     $e->getMessage(),
                 ), 400, $e);
@@ -191,24 +203,55 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
     }
 
     /**
-     * @return string[]
+     * Rows of the target are deleted, so a referencing foreign key with a propagating action would
+     * delete or modify rows of a table which is not part of the configuration at all.
+     *
+     * @param array<string, string> $references referencing table => ON DELETE action
+     * @throws UserException
      */
-    private function getReferencingTables(string $tableName): array
+    private function assertNoPropagatingReference(string $tableName, array $references): void
     {
-        $references = $this->connection->fetchAll(
+        $actions = [
+            'c' => 'ON DELETE CASCADE',
+            'n' => 'ON DELETE SET NULL',
+            'd' => 'ON DELETE SET DEFAULT',
+        ];
+
+        foreach ($references as $referencingTable => $onDelete) {
+            if (isset($actions[$onDelete])) {
+                throw new UserException(sprintf(
+                    'Rows of table "%s" cannot be replaced, table "%s" references it with %s, so removing '
+                    . 'the rows would change data of a table which is not part of the configuration. '
+                    . 'Change the foreign key to NO ACTION or empty the table "%s" first.',
+                    $tableName,
+                    $referencingTable,
+                    $actions[$onDelete],
+                    $referencingTable,
+                ), 400);
+            }
+        }
+    }
+
+    /**
+     * @return array<string, string> referencing table => ON DELETE action
+     */
+    private function getReferences(string $tableName): array
+    {
+        $rows = $this->connection->fetchAll(
             $this->queryBuilder->foreignKeyReferencesQueryStatement($this->connection, $tableName),
             1,
         );
 
-        $referencingTables = [];
-        foreach ($references as $reference) {
-            $referencingTable = $reference['table'] ?? null;
-            if (is_scalar($referencingTable)) {
-                $referencingTables[] = (string) $referencingTable;
+        $references = [];
+        foreach ($rows as $row) {
+            $referencingTable = $row['table'] ?? null;
+            $onDelete = $row['onDelete'] ?? null;
+            if (is_scalar($referencingTable) && is_scalar($onDelete)) {
+                $references[(string) $referencingTable] = (string) $onDelete;
             }
         }
 
-        return array_values(array_unique($referencingTables));
+        return $references;
     }
 
     private function hasTruncatePrivilege(string $tableName): bool
