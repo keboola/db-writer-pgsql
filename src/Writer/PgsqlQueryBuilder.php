@@ -46,15 +46,27 @@ SQL;
         return sprintf('DELETE FROM %s;', $connection->quoteIdentifier($tableName));
     }
 
+    /**
+     * Foreign keys of other tables referencing given table, self-references are not listed,
+     * they do not prevent truncating.
+     */
     public function foreignKeyReferencesQueryStatement(Connection $connection, string $tableName): string
     {
         $sql = <<<SQL
 SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table"
 FROM pg_constraint c
-WHERE c.contype = 'f' AND c.confrelid = quote_ident(%s)::regclass;
+WHERE c.contype = 'f' AND c.confrelid = quote_ident(%s)::regclass AND c.conrelid <> c.confrelid;
 SQL;
 
         return sprintf($sql, $connection->quote($tableName));
+    }
+
+    public function truncatePrivilegeQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf(
+            'SELECT has_table_privilege(quote_ident(%s)::regclass, \'TRUNCATE\') AS "hasPrivilege";',
+            $connection->quote($tableName),
+        );
     }
 
     /**

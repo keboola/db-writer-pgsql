@@ -85,8 +85,11 @@ replaces its content:
   default values. Column order in the table does not matter.
 - Structure, owner, indexes, constraints, triggers and privileges of the table are preserved.
 - The rows are removed with `TRUNCATE`, or with `DELETE` when the table is referenced by a
-  foreign key of another table. Removing the rows and inserting the new ones runs in a single
-  transaction.
+  foreign key of another table or when the `TRUNCATE` privilege is not granted. Removing the rows
+  and inserting the new ones runs in a single transaction.
+- Required privileges on the table are `SELECT`, `INSERT` and `DELETE` (`TRUNCATE` is used when
+  granted). `CREATE` on the schema is **still** required, the staging table the data are loaded
+  into is created there.
 
 ## Development
 

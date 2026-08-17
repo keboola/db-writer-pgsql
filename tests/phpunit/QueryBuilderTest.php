@@ -98,7 +98,7 @@ SQL;
         $expectedQuery = <<<SQL
 SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table"
 FROM pg_constraint c
-WHERE c.contype = 'f' AND c.confrelid = quote_ident('test')::regclass;
+WHERE c.contype = 'f' AND c.confrelid = quote_ident('test')::regclass AND c.conrelid <> c.confrelid;
 SQL;
 
         $queryBuilder = new PgsqlQueryBuilder();
@@ -106,6 +106,16 @@ SQL;
         $query = $queryBuilder->foreignKeyReferencesQueryStatement($this->connection, 'test');
 
         Assert::assertEquals($expectedQuery, $query);
+    }
+
+    public function testTruncatePrivilegeQuery(): void
+    {
+        $queryBuilder = new PgsqlQueryBuilder();
+
+        Assert::assertEquals(
+            'SELECT has_table_privilege(quote_ident(\'test\')::regclass, \'TRUNCATE\') AS "hasPrivilege";',
+            $queryBuilder->truncatePrivilegeQueryStatement($this->connection, 'test'),
+        );
     }
 
     /**
