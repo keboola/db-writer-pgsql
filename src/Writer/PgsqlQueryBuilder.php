@@ -27,6 +27,57 @@ SQL;
         );
     }
 
+    public function tableExistsQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf(
+            'SELECT table_name FROM information_schema.tables '
+            . 'WHERE table_schema = current_schema() AND table_name = %s',
+            $connection->quote($tableName),
+        );
+    }
+
+    public function baseTableExistsQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf(
+            'SELECT table_name FROM information_schema.tables '
+            . 'WHERE table_schema = current_schema() AND table_type = \'BASE TABLE\' AND table_name = %s',
+            $connection->quote($tableName),
+        );
+    }
+
+    public function truncateQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf('TRUNCATE TABLE %s;', $connection->quoteIdentifier($tableName));
+    }
+
+    public function deleteAllRowsQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf('DELETE FROM %s;', $connection->quoteIdentifier($tableName));
+    }
+
+    /**
+     * Foreign keys of other tables referencing given table, self-references are not listed,
+     * they do not prevent truncating.
+     */
+    public function foreignKeyReferencesQueryStatement(Connection $connection, string $tableName): string
+    {
+        $sql = <<<SQL
+SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table", c.confdeltype AS "onDelete"
+FROM pg_constraint c
+WHERE c.contype = 'f' AND c.confrelid = quote_ident(%s)::regclass AND c.conrelid <> c.confrelid;
+SQL;
+
+        return sprintf($sql, $connection->quote($tableName));
+    }
+
+    public function truncatePrivilegeQueryStatement(Connection $connection, string $tableName): string
+    {
+        return sprintf(
+            'SELECT has_table_privilege(quote_ident(%s)::regclass, \'TRUNCATE\') AS "hasPrivilege";',
+            $connection->quote($tableName),
+        );
+    }
+
     /**
      * @param PgsqlConnection $connection
      * @param ItemConfig[] $items
@@ -181,9 +232,12 @@ SQL;
             return sprintf('CAST(%s AS %s) as %s', $srcColName, $type, $colName);
         }, $items);
 
+        $columnNames = array_map(fn(ItemConfig $item) => $connection->quoteIdentifier($item->getDbName()), $items);
+
         return sprintf(
-            'INSERT INTO %s SELECT %s FROM %s',
+            'INSERT INTO %s (%s) SELECT %s FROM %s',
             $connection->quoteIdentifier($tableName),
+            implode(',', $columnNames),
             implode(',', $columns),
             $connection->quoteIdentifier($stageTableName),
         );
@@ -213,7 +267,8 @@ SQL;
     public function tableInfoQueryStatement(Connection $connection, string $dbName): string
     {
         return sprintf(
-            'SELECT column_name AS "Field", data_type AS "Type" FROM information_schema.columns WHERE table_name = %s',
+            'SELECT column_name AS "Field", data_type AS "Type" FROM information_schema.columns '
+            . 'WHERE table_schema = current_schema() AND table_name = %s',
             $connection->quote($dbName),
         );
     }

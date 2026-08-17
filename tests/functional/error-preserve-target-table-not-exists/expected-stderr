@@ -1,0 +1,1 @@
+Table "simple" not found in schema "%s". Create it in the database first, grant privileges on it to the database user (a table without any granted privilege is not visible), or disable the "preserveTargetTable" option. Views are not supported by the option.

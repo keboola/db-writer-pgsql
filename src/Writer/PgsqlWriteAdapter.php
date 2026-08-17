@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\DbWriter\Writer;
 
 use Keboola\DbWriter\Exception\UserException;
+use Keboola\DbWriterAdapter\Connection\Connection;
 use Keboola\DbWriterAdapter\PDO\PdoConnection;
 use Keboola\DbWriterAdapter\PDO\PdoWriteAdapter;
 use Keboola\DbWriterAdapter\Query\QueryBuilder;
@@ -13,6 +14,7 @@ use Keboola\DbWriterConfig\Configuration\ValueObject\ItemConfig;
 use Keboola\DbWriterConfig\Exception\PropertyNotSetException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * @property PgsqlQueryBuilder $queryBuilder
@@ -40,6 +42,91 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
     public function writeData(string $tableName, ExportConfig $exportConfig): void
     {
+        $this->withStageTable(
+            $tableName,
+            $exportConfig,
+            fn(string $stageTableName) => $this->moveDataFromStageToTable(
+                $stageTableName,
+                $tableName,
+                $exportConfig,
+            ),
+        );
+    }
+
+    /**
+     * Replaces all rows of an existing table, keeping its structure, owner and privileges intact.
+     * Data are removed and inserted in a single transaction, so the table is never left empty
+     * when the insert fails.
+     */
+    public function replaceData(string $tableName, ExportConfig $exportConfig): void
+    {
+        $this->withStageTable($tableName, $exportConfig, function (string $stageTableName) use (
+            $tableName,
+            $exportConfig,
+        ): void {
+            $pdo = $this->connection->getConnection();
+            $pdo->beginTransaction();
+            try {
+                $this->removeAllRows($tableName);
+                $this->moveDataFromStageToTable($stageTableName, $tableName, $exportConfig, 1);
+                $pdo->commit();
+            } catch (Throwable $e) {
+                try {
+                    $pdo->rollBack();
+                } catch (Throwable $rollbackError) {
+                    $this->logger->debug(sprintf('Rollback failed: %s', $rollbackError->getMessage()));
+                }
+                throw $e;
+            }
+        });
+    }
+
+    /**
+     * Unlike tableExists() this ignores views, they cannot be truncated nor deleted from.
+     */
+    public function baseTableExists(string $tableName): bool
+    {
+        return (bool) $this->connection->fetchAll(
+            $this->queryBuilder->baseTableExistsQueryStatement($this->connection, $tableName),
+        );
+    }
+
+    /**
+     * @param ItemConfig[] $items
+     * @throws UserException
+     */
+    public function validateTableColumns(string $tableName, array $items): void
+    {
+        $dbColumns = array_map(fn(array $column) => $column['Field'], $this->getTableInfo($tableName));
+
+        $missingColumns = [];
+        foreach ($items as $item) {
+            if (strtolower($item->getType()) === 'ignore') {
+                continue;
+            }
+            if (!in_array($item->getDbName(), $dbColumns, true)) {
+                $missingColumns[] = $item->getDbName();
+            }
+        }
+
+        if ($missingColumns) {
+            throw new UserException(sprintf(
+                'Columns "%s" not found in destination table "%s". Found columns: "%s". '
+                . 'Columns the database user has no privileges on are not visible either.',
+                implode('", "', $missingColumns),
+                $tableName,
+                implode('", "', $dbColumns),
+            ), 400);
+        }
+    }
+
+    /**
+     * @param callable(string): void $writeCallback
+     * @throws PropertyNotSetException
+     * @throws UserException
+     */
+    private function withStageTable(string $tableName, ExportConfig $exportConfig, callable $writeCallback): void
+    {
         $stageTableName = $this->generateTmpName($tableName);
 
         $this->logger->debug(sprintf('Creating staging table "%s"', $stageTableName));
@@ -48,12 +135,135 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
         try {
             $this->writeDataToStage($stageTableName, $exportConfig);
-            $this->moveDataFromStageToTable($stageTableName, $tableName, $exportConfig);
+            $writeCallback($stageTableName);
         } finally {
             $this->logger->debug(sprintf('Dropping staging table "%s"', $stageTableName));
             $this->drop($stageTableName);
             $this->logger->debug(sprintf('Staging table "%s" dropped', $stageTableName));
         }
+    }
+
+    /**
+     * TRUNCATE is not allowed on a table referenced by a foreign key of another table and it
+     * requires the TRUNCATE privilege, DELETE is used in those cases. The decision must be made
+     * before the statement is executed, a failed statement aborts the whole transaction.
+     *
+     * @throws UserException
+     */
+    private function removeAllRows(string $tableName): void
+    {
+        $references = $this->getReferences($tableName);
+        if ($references) {
+            $this->assertNoPropagatingReference($tableName, $references);
+            $this->logger->info(sprintf(
+                'Table "%s" is referenced by foreign keys of tables "%s", deleting rows instead of truncating.',
+                $tableName,
+                implode('", "', array_keys($references)),
+            ));
+            $this->deleteAllRows($tableName);
+            return;
+        }
+
+        if (!$this->hasTruncatePrivilege($tableName)) {
+            $this->logger->info(sprintf(
+                'TRUNCATE is not granted on table "%s", deleting rows instead of truncating.',
+                $tableName,
+            ));
+            $this->deleteAllRows($tableName);
+            return;
+        }
+
+        $this->connection->exec(
+            $this->queryBuilder->truncateQueryStatement($this->connection, $tableName),
+            1,
+        );
+    }
+
+    /**
+     * @throws UserException
+     */
+    private function deleteAllRows(string $tableName): void
+    {
+        try {
+            $this->connection->exec(
+                $this->queryBuilder->deleteAllRowsQueryStatement($this->connection, $tableName),
+                1,
+            );
+        } catch (Throwable $e) {
+            if (str_contains($e->getMessage(), 'violates foreign key constraint')) {
+                throw new UserException(sprintf(
+                    'Rows of table "%s" cannot be deleted, they are referenced by rows of another table: %s '
+                    . 'Delete the referencing rows first.',
+                    $tableName,
+                    $e->getMessage(),
+                ), 400, $e);
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Rows of the target are deleted, so a referencing foreign key with a propagating action would
+     * delete or modify rows of a table which is not part of the configuration at all.
+     *
+     * @param array<string, string> $references referencing table => ON DELETE action
+     * @throws UserException
+     */
+    private function assertNoPropagatingReference(string $tableName, array $references): void
+    {
+        $actions = [
+            'c' => 'ON DELETE CASCADE',
+            'n' => 'ON DELETE SET NULL',
+            'd' => 'ON DELETE SET DEFAULT',
+        ];
+
+        foreach ($references as $referencingTable => $onDelete) {
+            if (isset($actions[$onDelete])) {
+                throw new UserException(sprintf(
+                    'Rows of table "%s" cannot be replaced, table "%s" references it with %s, so removing '
+                    . 'the rows would change data of a table which is not part of the configuration. '
+                    . 'Change the foreign key to NO ACTION or empty the table "%s" first.',
+                    $tableName,
+                    $referencingTable,
+                    $actions[$onDelete],
+                    $referencingTable,
+                ), 400);
+            }
+        }
+    }
+
+    /**
+     * @return array<string, string> referencing table => ON DELETE action
+     */
+    private function getReferences(string $tableName): array
+    {
+        $rows = $this->connection->fetchAll(
+            $this->queryBuilder->foreignKeyReferencesQueryStatement($this->connection, $tableName),
+            1,
+        );
+
+        $references = [];
+        foreach ($rows as $row) {
+            $referencingTable = $row['table'] ?? null;
+            $onDelete = $row['onDelete'] ?? null;
+            if (is_scalar($referencingTable) && is_scalar($onDelete)) {
+                $references[(string) $referencingTable] = (string) $onDelete;
+            }
+        }
+
+        return $references;
+    }
+
+    private function hasTruncatePrivilege(string $tableName): bool
+    {
+        $result = $this->connection->fetchAll(
+            $this->queryBuilder->truncatePrivilegeQueryStatement($this->connection, $tableName),
+            1,
+        );
+
+        $hasPrivilege = $result[0]['hasPrivilege'] ?? false;
+
+        return in_array($hasPrivilege, [true, 't', '1', 1], true);
     }
 
     /**
@@ -152,6 +362,7 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
         string $stageTableName,
         string $tableName,
         ExportConfig $exportConfig,
+        int $maxRetries = Connection::DEFAULT_MAX_RETRIES,
     ): void {
         $this->logger->info('Moving to destination table');
 
@@ -161,7 +372,7 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
             $tableName,
             $exportConfig,
         );
-        $this->connection->exec($query);
+        $this->connection->exec($query, $maxRetries);
 
         $this->logger->info(sprintf('Data moved into table "%s".', $exportConfig->getDbName()));
     }

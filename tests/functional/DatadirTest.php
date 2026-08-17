@@ -76,7 +76,7 @@ class DatadirTest extends AbstractDatadirTestCase
     {
         foreach ($this->getTableNames() as $tableName) {
             $this->connection->exec(sprintf(
-                'DROP TABLE IF EXISTS %s',
+                'DROP TABLE IF EXISTS %s CASCADE',
                 $this->connection->quoteIdentifier($tableName),
             ));
         }

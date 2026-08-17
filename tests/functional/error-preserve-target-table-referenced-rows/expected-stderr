@@ -1,0 +1,1 @@
+Rows of table "simple" cannot be deleted, they are referenced by rows of another table: %A Delete the referencing rows first.

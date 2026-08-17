@@ -1,0 +1,1 @@
+Rows of table "simple" cannot be replaced, table "simple_child" references it with ON DELETE CASCADE, so removing the rows would change data of a table which is not part of the configuration. Change the foreign key to NO ACTION or empty the table "simple_child" first.

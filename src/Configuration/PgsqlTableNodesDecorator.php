@@ -13,6 +13,7 @@ class PgsqlTableNodesDecorator extends TableNodesDecorator
     {
         parent::addNodes($nodeBuilder);
         $this->addUseTempTable($nodeBuilder);
+        $this->addPreserveTargetTable($nodeBuilder);
     }
 
 
@@ -34,5 +35,10 @@ class PgsqlTableNodesDecorator extends TableNodesDecorator
     private function addUseTempTable(NodeBuilder $nodeBuilder): void
     {
         $nodeBuilder->booleanNode('useTempTable')->defaultFalse();
+    }
+
+    private function addPreserveTargetTable(NodeBuilder $nodeBuilder): void
+    {
+        $nodeBuilder->booleanNode('preserveTargetTable')->defaultFalse();
     }
 }
