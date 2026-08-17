@@ -79,7 +79,7 @@ SQL;
 
         // move data from stage to destination table
         self::assertStringMatchesFormat('Moving to destination table', $logger->records[14]['message']);
-        self::assertStringMatchesFormat('Running query "INSERT INTO "test" SELECT CAST("id" AS INTEGER) as "id",CAST("name" AS CHARACTER VARYING(255)) as "name",CAST("age" AS INTEGER) as "age" FROM "%s"".', $logger->records[15]['message']);
+        self::assertStringMatchesFormat('Running query "INSERT INTO "test" ("id","name","age") SELECT CAST("id" AS INTEGER) as "id",CAST("name" AS CHARACTER VARYING(255)) as "name",CAST("age" AS INTEGER) as "age" FROM "%s"".', $logger->records[15]['message']);
         self::assertStringMatchesFormat('Data moved into table "test".', $logger->records[16]['message']);
 
         // drop stage table

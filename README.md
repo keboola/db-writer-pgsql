@@ -61,6 +61,33 @@ Writes data to pgsql Database.
     }
 ```
 
+## Writing to a table created in advance
+
+By default, a **Full Load** (`"incremental": false`) drops the destination table and creates it
+again from the configured columns, so the writer must own the table.
+
+With `"preserveTargetTable": true`, the table is not dropped nor created — the writer only
+replaces its content:
+
+```json
+    {
+      "tableId": "simple",
+      "dbName": "simple",
+      "incremental": false,
+      "preserveTargetTable": true,
+      "items": [...]
+    }
+```
+
+- The table must already exist in the configured schema, otherwise the job fails with a user
+  error. The same applies to an **Incremental Load** with this option enabled.
+- All configured columns must exist in the table; other columns of the table are left to their
+  default values. Column order in the table does not matter.
+- Structure, owner, indexes, constraints, triggers and privileges of the table are preserved.
+- The rows are removed with `TRUNCATE`, or with `DELETE` when the table is referenced by a
+  foreign key of another table. Removing the rows and inserting the new ones runs in a single
+  transaction.
+
 ## Development
 
 App is developed on localhost using TDD.

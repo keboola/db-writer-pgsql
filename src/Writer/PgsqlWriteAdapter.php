@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Keboola\DbWriter\Writer;
 
 use Keboola\DbWriter\Exception\UserException;
+use Keboola\DbWriterAdapter\Connection\Connection;
 use Keboola\DbWriterAdapter\PDO\PdoConnection;
 use Keboola\DbWriterAdapter\PDO\PdoWriteAdapter;
 use Keboola\DbWriterAdapter\Query\QueryBuilder;
@@ -13,6 +14,7 @@ use Keboola\DbWriterConfig\Configuration\ValueObject\ItemConfig;
 use Keboola\DbWriterConfig\Exception\PropertyNotSetException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * @property PgsqlQueryBuilder $queryBuilder
@@ -40,6 +42,76 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
     public function writeData(string $tableName, ExportConfig $exportConfig): void
     {
+        $this->withStageTable(
+            $tableName,
+            $exportConfig,
+            fn(string $stageTableName) => $this->moveDataFromStageToTable(
+                $stageTableName,
+                $tableName,
+                $exportConfig,
+            ),
+        );
+    }
+
+    /**
+     * Replaces all rows of an existing table, keeping its structure, owner and privileges intact.
+     * Data are removed and inserted in a single transaction, so the table is never left empty
+     * when the insert fails.
+     */
+    public function replaceData(string $tableName, ExportConfig $exportConfig): void
+    {
+        $this->withStageTable($tableName, $exportConfig, function (string $stageTableName) use (
+            $tableName,
+            $exportConfig,
+        ): void {
+            $pdo = $this->connection->getConnection();
+            $pdo->beginTransaction();
+            try {
+                $this->removeAllRows($tableName);
+                $this->moveDataFromStageToTable($stageTableName, $tableName, $exportConfig, 1);
+                $pdo->commit();
+            } catch (Throwable $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+        });
+    }
+
+    /**
+     * @param ItemConfig[] $items
+     * @throws UserException
+     */
+    public function validateTableColumns(string $tableName, array $items): void
+    {
+        $dbColumns = array_map(fn(array $column) => $column['Field'], $this->getTableInfo($tableName));
+
+        $missingColumns = [];
+        foreach ($items as $item) {
+            if (strtolower($item->getType()) === 'ignore') {
+                continue;
+            }
+            if (!in_array($item->getDbName(), $dbColumns, true)) {
+                $missingColumns[] = $item->getDbName();
+            }
+        }
+
+        if ($missingColumns) {
+            throw new UserException(sprintf(
+                'Columns "%s" not found in destination table "%s". Found columns: "%s".',
+                implode('", "', $missingColumns),
+                $tableName,
+                implode('", "', $dbColumns),
+            ), 400);
+        }
+    }
+
+    /**
+     * @param callable(string): void $writeCallback
+     * @throws PropertyNotSetException
+     * @throws UserException
+     */
+    private function withStageTable(string $tableName, ExportConfig $exportConfig, callable $writeCallback): void
+    {
         $stageTableName = $this->generateTmpName($tableName);
 
         $this->logger->debug(sprintf('Creating staging table "%s"', $stageTableName));
@@ -48,12 +120,50 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
         try {
             $this->writeDataToStage($stageTableName, $exportConfig);
-            $this->moveDataFromStageToTable($stageTableName, $tableName, $exportConfig);
+            $writeCallback($stageTableName);
         } finally {
             $this->logger->debug(sprintf('Dropping staging table "%s"', $stageTableName));
             $this->drop($stageTableName);
             $this->logger->debug(sprintf('Staging table "%s" dropped', $stageTableName));
         }
+    }
+
+    /**
+     * TRUNCATE is not allowed on a table referenced by a foreign key of another table,
+     * DELETE is used in that case.
+     */
+    private function removeAllRows(string $tableName): void
+    {
+        $references = $this->connection->fetchAll(
+            $this->queryBuilder->foreignKeyReferencesQueryStatement($this->connection, $tableName),
+            1,
+        );
+
+        if ($references) {
+            $referencingTables = [];
+            foreach ($references as $reference) {
+                $referencingTable = $reference['table'] ?? null;
+                if (is_scalar($referencingTable)) {
+                    $referencingTables[] = (string) $referencingTable;
+                }
+            }
+
+            $this->logger->info(sprintf(
+                'Table "%s" is referenced by foreign keys of tables "%s", deleting rows instead of truncating.',
+                $tableName,
+                implode('", "', array_unique($referencingTables)),
+            ));
+            $this->connection->exec(
+                $this->queryBuilder->deleteAllRowsQueryStatement($this->connection, $tableName),
+                1,
+            );
+            return;
+        }
+
+        $this->connection->exec(
+            $this->queryBuilder->truncateQueryStatement($this->connection, $tableName),
+            1,
+        );
     }
 
     /**
@@ -152,6 +262,7 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
         string $stageTableName,
         string $tableName,
         ExportConfig $exportConfig,
+        int $maxRetries = Connection::DEFAULT_MAX_RETRIES,
     ): void {
         $this->logger->info('Moving to destination table');
 
@@ -161,7 +272,7 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
             $tableName,
             $exportConfig,
         );
-        $this->connection->exec($query);
+        $this->connection->exec($query, $maxRetries);
 
         $this->logger->info(sprintf('Data moved into table "%s".', $exportConfig->getDbName()));
     }

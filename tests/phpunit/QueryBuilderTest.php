@@ -49,13 +49,61 @@ SQL;
 
     public function testTableInfoQuery(): void
     {
+        // disable phpcs because of long string
+        /** @phpcs:disable */
         $expectedQuery = <<<SQL
-SELECT column_name AS "Field", data_type AS "Type" FROM information_schema.columns WHERE table_name = 'test'
+SELECT column_name AS "Field", data_type AS "Type" FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'test'
 SQL;
+        /** @phpcs:enable */
 
         $queryBuilder = new PgsqlQueryBuilder();
 
         $query = $queryBuilder->tableInfoQueryStatement($this->connection, 'test');
+
+        Assert::assertEquals($expectedQuery, $query);
+    }
+
+    public function testTableExistsQuery(): void
+    {
+        // disable phpcs because of long string
+        /** @phpcs:disable */
+        $expectedQuery = <<<SQL
+SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'test'
+SQL;
+        /** @phpcs:enable */
+
+        $queryBuilder = new PgsqlQueryBuilder();
+
+        $query = $queryBuilder->tableExistsQueryStatement($this->connection, 'test');
+
+        Assert::assertEquals($expectedQuery, $query);
+    }
+
+    public function testTruncateQuery(): void
+    {
+        $queryBuilder = new PgsqlQueryBuilder();
+
+        Assert::assertEquals(
+            'TRUNCATE TABLE "test";',
+            $queryBuilder->truncateQueryStatement($this->connection, 'test'),
+        );
+        Assert::assertEquals(
+            'DELETE FROM "test";',
+            $queryBuilder->deleteAllRowsQueryStatement($this->connection, 'test'),
+        );
+    }
+
+    public function testForeignKeyReferencesQuery(): void
+    {
+        $expectedQuery = <<<SQL
+SELECT c.conname AS "constraint", c.conrelid::regclass::text AS "table"
+FROM pg_constraint c
+WHERE c.contype = 'f' AND c.confrelid = quote_ident('test')::regclass;
+SQL;
+
+        $queryBuilder = new PgsqlQueryBuilder();
+
+        $query = $queryBuilder->foreignKeyReferencesQueryStatement($this->connection, 'test');
 
         Assert::assertEquals($expectedQuery, $query);
     }
@@ -146,7 +194,7 @@ SQL;
         // disable phpcs because of long string
         /** @phpcs:disable */
         $expectedQuery = <<<SQL
-INSERT INTO "test" SELECT CAST("id" AS INT) as "id",CAST("name" AS VARCHAR(255)) as "name",CAST(NULLIF("age", '') AS INT) as "age" FROM "stageName"
+INSERT INTO "test" ("id","name","age") SELECT CAST("id" AS INT) as "id",CAST("name" AS VARCHAR(255)) as "name",CAST(NULLIF("age", '') AS INT) as "age" FROM "stageName"
 SQL;
         /** @phpcs:enable */
 

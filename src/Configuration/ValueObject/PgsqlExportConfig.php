@@ -14,6 +14,8 @@ readonly class PgsqlExportConfig extends ExportConfig
 {
     private bool $useTempTable;
 
+    private bool $preserveTargetTable;
+
     public function __construct(
         private string $dataDir,
         private string $writerClass,
@@ -26,8 +28,10 @@ readonly class PgsqlExportConfig extends ExportConfig
         private array $items,
         private string $tableFilePath,
         bool $useTempTable,
+        bool $preserveTargetTable = false,
     ) {
         $this->useTempTable = $useTempTable;
+        $this->preserveTargetTable = $preserveTargetTable;
         parent::__construct(
             $this->dataDir,
             $this->writerClass,
@@ -68,11 +72,17 @@ readonly class PgsqlExportConfig extends ExportConfig
             array_map(fn($v) => ItemConfig::fromArray($v), $config['items']),
             $tableFilePath,
             $config['useTempTable'] ?? false,
+            $config['preserveTargetTable'] ?? false,
         );
     }
 
     public function useTempTable(): bool
     {
         return $this->useTempTable;
+    }
+
+    public function preserveTargetTable(): bool
+    {
+        return $this->preserveTargetTable;
     }
 }
