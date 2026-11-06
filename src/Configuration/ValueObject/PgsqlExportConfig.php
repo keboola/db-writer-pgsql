@@ -26,6 +26,7 @@ readonly class PgsqlExportConfig extends ExportConfig
         private array $items,
         private string $tableFilePath,
         bool $useTempTable,
+        bool $propagateDescriptions = true,
     ) {
         $this->useTempTable = $useTempTable;
         parent::__construct(
@@ -39,6 +40,7 @@ readonly class PgsqlExportConfig extends ExportConfig
             $this->primaryKey,
             $this->items,
             $this->tableFilePath,
+            $propagateDescriptions,
         );
     }
 
@@ -68,6 +70,7 @@ readonly class PgsqlExportConfig extends ExportConfig
             array_map(fn($v) => ItemConfig::fromArray($v), $config['items']),
             $tableFilePath,
             $config['useTempTable'] ?? false,
+            $config['propagateDescriptions'] ?? true,
         );
     }
 

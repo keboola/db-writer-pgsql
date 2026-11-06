@@ -25,6 +25,8 @@ class DatadirTest extends AbstractDatadirTestCase
 
     protected string $testProjectDir;
 
+    public bool $dumpComments = false;
+
     public function __construct(
         ?string $name = null,
         array $data = [],
@@ -41,6 +43,7 @@ class DatadirTest extends AbstractDatadirTestCase
         parent::setUp();
         $this->closeSshTunnels();
         $this->dropTables();
+        $this->dumpComments = false;
 
         $this->testProjectDir = $this->getTestFileDir() . '/' . $this->dataName();
 
@@ -68,6 +71,9 @@ class DatadirTest extends AbstractDatadirTestCase
         $process = $this->runScript($tempDatadir->getTmpFolder());
 
         $this->dumpTables($tempDatadir->getTmpFolder());
+        if ($this->dumpComments) {
+            $this->dumpComments($tempDatadir->getTmpFolder());
+        }
 
         $this->assertMatchesSpecification($specification, $process, $tempDatadir->getTmpFolder());
     }
@@ -93,6 +99,47 @@ class DatadirTest extends AbstractDatadirTestCase
 
         foreach ($this->getTableNames() as $tableName) {
             $this->dumpTableData($tableName, $dumpDir);
+        }
+    }
+
+    private function dumpComments(string $tmpFolder): void
+    {
+        $dumpDir = $tmpFolder . '/out/db-comments';
+        $fs = new Filesystem();
+        $fs->mkdir($dumpDir);
+
+        $schema = $this->connection->quote((string) getenv('DB_SCHEMA'));
+        foreach ($this->getTableNames() as $tableName) {
+            $relation = sprintf(
+                'SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace '
+                . 'WHERE n.nspname = %s AND c.relname = %s',
+                $schema,
+                $this->connection->quote($tableName),
+            );
+            /** @var array{comment: ?string}[] $table */
+            $table = $this->connection->fetchAll(sprintf(
+                'SELECT obj_description((%s), \'pg_class\') AS comment',
+                $relation,
+            ));
+            /** @var array{column_name: string, comment: ?string}[] $columns */
+            $columns = $this->connection->fetchAll(sprintf(
+                'SELECT a.attname AS column_name, col_description(a.attrelid, a.attnum) AS comment '
+                . 'FROM pg_attribute a WHERE a.attrelid = (%s) AND a.attnum > 0 AND NOT a.attisdropped '
+                . 'ORDER BY a.attnum',
+                $relation,
+            ));
+
+            $comments = [
+                'table' => $table[0]['comment'] ?? null,
+                'columns' => array_combine(
+                    array_column($columns, 'column_name'),
+                    array_column($columns, 'comment'),
+                ),
+            ];
+            file_put_contents(
+                sprintf('%s/%s.json', $dumpDir, $tableName),
+                json_encode($comments, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
+            );
         }
     }
 

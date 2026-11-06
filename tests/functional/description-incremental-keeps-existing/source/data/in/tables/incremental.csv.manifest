@@ -1,0 +1,31 @@
+{
+  "columns": [
+    "name",
+    "int",
+    "float",
+    "date",
+    "datetime",
+    "timestamp"
+  ],
+  "description": "Incremental table",
+  "schema": [
+    {
+      "name": "name",
+      "description": "Name column"
+    },
+    {
+      "name": "int",
+      "description": ""
+    },
+    {
+      "name": "float"
+    },
+    {
+      "name": "date",
+      "description": "Date column"
+    },
+    {
+      "name": "timestamp"
+    }
+  ]
+}
