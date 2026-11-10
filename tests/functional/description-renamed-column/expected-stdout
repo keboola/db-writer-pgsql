@@ -1,0 +1,12 @@
+Connecting to DSN "pgsql:host=pgsql;port=5432;dbname=postgres"...
+Creating PDO connection to "pgsql:host=pgsql;port=5432;dbname=postgres".
+PgSQL server version: %s
+Creating table "simple"
+Uploading data into staging table "%s".
+COPY %s
+Data imported into staging table "%s".
+Moving to destination table
+Data moved into table "simple".
+Setting comment on table "simple"
+Setting comment on column "id" in table "simple"
+Setting comment on column "full_name" in table "simple"

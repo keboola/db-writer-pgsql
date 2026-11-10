@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Keboola\DbWriter\Writer;
 
 use Keboola\DbWriter\Exception\UserException;
+use Keboola\DbWriterAdapter\DescriptionWriteAdapter;
 use Keboola\DbWriterAdapter\PDO\PdoConnection;
 use Keboola\DbWriterAdapter\PDO\PdoWriteAdapter;
 use Keboola\DbWriterAdapter\Query\QueryBuilder;
+use Keboola\DbWriterAdapter\ValueObject\TableDescriptions;
 use Keboola\DbWriterConfig\Configuration\ValueObject\ExportConfig;
 use Keboola\DbWriterConfig\Configuration\ValueObject\ItemConfig;
 use Keboola\DbWriterConfig\Exception\PropertyNotSetException;
@@ -18,7 +20,7 @@ use Symfony\Component\Process\Process;
  * @property PgsqlQueryBuilder $queryBuilder
  * @property PgsqlConnection $connection
  */
-class PgsqlWriteAdapter extends PdoWriteAdapter
+class PgsqlWriteAdapter extends PdoWriteAdapter implements DescriptionWriteAdapter
 {
     public function drop(string $tableName): void
     {
@@ -168,5 +170,28 @@ class PgsqlWriteAdapter extends PdoWriteAdapter
 
     public function validateTable(string $tableName, array $items): void
     {
+    }
+
+    public function applyDescriptions(string $tableName, TableDescriptions $descriptions): void
+    {
+        $table = $descriptions->getTable();
+        if ($table !== null && $table !== '') {
+            $this->logger->info(sprintf('Setting comment on table "%s"', $tableName));
+            $this->connection->exec(sprintf(
+                'COMMENT ON TABLE %s IS %s',
+                $this->connection->quoteIdentifier($tableName),
+                $this->connection->quote($table),
+            ));
+        }
+
+        foreach ($descriptions->getColumns() as $column => $description) {
+            $this->logger->info(sprintf('Setting comment on column "%s" in table "%s"', $column, $tableName));
+            $this->connection->exec(sprintf(
+                'COMMENT ON COLUMN %s.%s IS %s',
+                $this->connection->quoteIdentifier($tableName),
+                $this->connection->quoteIdentifier((string) $column),
+                $this->connection->quote($description),
+            ));
+        }
     }
 }
